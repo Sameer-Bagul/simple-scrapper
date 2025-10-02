@@ -1,5 +1,5 @@
-streamlit
-pandas
+ddgs>=9.0.0
+httpx>=0.24.0
 beautifulsoup4
-httpx
-ddgs
+pandas
+lxml

@@ -1,26 +1,62 @@
 import streamlit as st
 import asyncio
-from scraper import scrape_jobs
+import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Job Email Scraper", layout="wide")
+from scraper_careers import scrape_careers  # Import the async scraper we just created
 
-st.title("💼 Job Email Scraper")
-st.write("Enter a job role or keyword, and this app will search job sites for listings + extract contact emails.")
+# -----------------------------
+# Streamlit UI
+# -----------------------------
+st.set_page_config(page_title="Ultimate Job Scraper", layout="wide")
 
-query = st.text_input("🔍 Enter job role (e.g. MERN Developer, React Native jobs)", "MERN stack developer")
-max_results = st.slider("Max results to fetch", 10, 100, 30)
+st.title("🕵️‍♂️ Ultimate Job & Career Page Scraper")
+st.markdown("""
+This app searches for career pages, job postings, and contact emails across the web for a given query.
+It probes multiple domains, checks common career/contact paths, and extracts emails automatically.
+""")
 
-if st.button("Start Scraping"):
-    with st.spinner("Scraping in progress... please wait ⏳"):
-        df = asyncio.run(scrape_jobs(query, max_results))
-        if df.empty:
-            st.warning("No job listings found. Try a broader query.")
-        else:
-            st.success(f"✅ Found {len(df)} job listings with emails")
-            st.dataframe(df)
+# Sidebar inputs
+st.sidebar.header("Search Settings")
+query = st.sidebar.text_input("Search Query", "MERN stack developer")
+max_results = st.sidebar.slider("Max DuckDuckGo Results", 20, 200, 60)
+run_scrape = st.sidebar.button("Start Scraping")
 
-            # Save CSV
-            filename = f"jobs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            df.to_csv(filename, index=False)
-            st.download_button("📥 Download CSV", data=df.to_csv(index=False), file_name=filename, mime="text/csv")
+# Display spinner while running
+if run_scrape:
+    if not query.strip():
+        st.error("Please enter a valid search query!")
+    else:
+        st.info(f"🔍 Searching for domains & career pages for: **{query}** ...")
+        with st.spinner("Scraping in progress... This may take a few minutes depending on results."):
+
+            # Run async scraping
+            df = asyncio.run(scrape_careers(query, max_results=max_results))
+
+            if df.empty:
+                st.warning("No results found.")
+            else:
+                st.success(f"✅ Found {len(df)} pages!")
+
+                # Highlight job-like pages
+                job_df = df[df["is_job_like"]]
+                other_df = df[~df["is_job_like"]]
+
+                st.subheader("📌 Job-like Pages")
+                st.dataframe(job_df[["domain", "url", "title", "emails"]].reset_index(drop=True))
+
+                st.subheader("📄 Other Pages")
+                st.dataframe(other_df[["domain", "url", "title", "emails"]].reset_index(drop=True))
+
+                # Download CSV
+                csv_file = df.to_csv(index=False).encode("utf-8")
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                st.download_button(
+                    label="⬇️ Download All Results as CSV",
+                    data=csv_file,
+                    file_name=f"job_scrape_{timestamp}.csv",
+                    mime="text/csv"
+                )
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("Made with ❤️ by Sam. Scrape responsibly and respect site rules.")
