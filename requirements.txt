@@ -1,4 +1,5 @@
-ddgs
+duckduckgo-search
 requests
 beautifulsoup4
 pandas
+streamlit
